@@ -55,14 +55,20 @@ void AckermannOffboardMode::offboardControl()
 	trajectory_setpoint_s trajectory_setpoint{};
 	_trajectory_setpoint_sub.copy(&trajectory_setpoint);
 
+	const float vx = trajectory_setpoint.velocity[0];
+    	const float vy = trajectory_setpoint.velocity[1];
+    	const float vz = trajectory_setpoint.velocity[2];
+
 	if (offboard_control_mode.position) {
 		rover_position_setpoint_s rover_position_setpoint{};
 		rover_position_setpoint.timestamp = hrt_absolute_time();
 		rover_position_setpoint.position_ned[0] = trajectory_setpoint.position[0];
 		rover_position_setpoint.position_ned[1] = trajectory_setpoint.position[1];
+		rover_position_setpoint.velocity_ned[0] = trajectory_setpoint.velocity[0];
+		rover_position_setpoint.velocity_ned[1] = trajectory_setpoint.velocity[1];
 		rover_position_setpoint.start_ned[0] = NAN;
 		rover_position_setpoint.start_ned[1] = NAN;
-		rover_position_setpoint.cruising_speed = NAN;
+		rover_position_setpoint.cruising_speed = (!PX4_ISFINITE(vx) && !PX4_ISFINITE(vy) && !PX4_ISFINITE(vz)) ? 0.0f : NAN;
 		rover_position_setpoint.arrival_speed = NAN;
 		rover_position_setpoint.yaw = NAN;
 		_rover_position_setpoint_pub.publish(rover_position_setpoint);

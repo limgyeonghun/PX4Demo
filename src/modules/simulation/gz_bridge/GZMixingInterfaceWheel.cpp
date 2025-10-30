@@ -82,9 +82,12 @@ bool GZMixingInterfaceWheel::updateOutputs(uint16_t outputs[MAX_ACTUATORS], unsi
 			// Offsetting the output allows for negative values despite unsigned integer to reverse the wheels
 			static constexpr double output_offset = 100.0;
 			double scaled_output = (double)outputs[i] - output_offset;
+			if (scaled_output < 0) {
+				scaled_output = 0; // Ensure no negative speeds
+			}
+			// PX4_INFO("wheel %u speed: %.2f", i, (double)scaled_output);
 			wheel_velocity_message.set_velocity(i, scaled_output);
 		}
-
 
 		if (_actuators_pub.Valid()) {
 			return _actuators_pub.Publish(wheel_velocity_message);

@@ -106,6 +106,8 @@ private:
 	Quatf _vehicle_attitude_quaternion{};
 	Vector2f _curr_pos_ned{};
 	Vector2f _start_ned{};
+	Vector2f _prev_wp{};
+	Vector2f _target_velocity_ned{NAN, NAN}; // Target velocity from setpoint
 	float _arrival_speed{0.f};
 	float _vehicle_yaw{0.f};
 	float _max_yaw_rate{0.f};

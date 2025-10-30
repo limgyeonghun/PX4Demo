@@ -32,6 +32,7 @@
  ****************************************************************************/
 
 #include "AckermannPosControl.hpp"
+#include <string>
 
 using namespace time_literals;
 
@@ -60,6 +61,12 @@ void AckermannPosControl::updatePosControl()
 
 	if (target_waypoint_ned.isAllFinite()) {
 		float distance_to_target = (target_waypoint_ned - _curr_pos_ned).norm();
+		// PX4_INFO("Distance to target: %.2f m", (double)distance_to_target);
+
+		if (_target_velocity_ned.isAllFinite()) {
+			distance_to_target = (_target_velocity_ned - _curr_pos_ned).norm();
+			// PX4_INFO("Using target velocity, adjusted distance to target: %.2f m", (double)distance_to_target);
+		}
 
 		if (_arrival_speed > FLT_EPSILON) {
 			distance_to_target -= _acceptance_radius; // shift target to the edge of the acceptance radius if arrival speed not zero
@@ -80,7 +87,7 @@ void AckermannPosControl::updatePosControl()
 			pure_pursuit_status.timestamp = timestamp;
 
 			const float bearing_setpoint = PurePursuit::calcTargetBearing(pure_pursuit_status, _param_pp_lookahd_gain.get(),
-						       _param_pp_lookahd_max.get(), _param_pp_lookahd_min.get(), target_waypoint_ned, _start_ned,
+						       _param_pp_lookahd_max.get(), _param_pp_lookahd_min.get(), target_waypoint_ned, _prev_wp,
 						       _curr_pos_ned, fabsf(speed_setpoint));
 			_pure_pursuit_status_pub.publish(pure_pursuit_status);
 			rover_velocity_setpoint_s rover_velocity_setpoint{};
@@ -97,6 +104,13 @@ void AckermannPosControl::updatePosControl()
 			rover_velocity_setpoint.bearing = _vehicle_yaw;
 			_rover_velocity_setpoint_pub.publish(rover_velocity_setpoint);
 		}
+	}
+	float distance_thresh = 0.05f; // [m] Threshold to update previous waypoint
+
+	if (_prev_wp.isAllFinite() == false) {
+		_prev_wp = _curr_pos_ned;
+	} else if ((target_waypoint_ned - _prev_wp).norm() > distance_thresh) {
+		_prev_wp = target_waypoint_ned;
 	}
 }
 
@@ -134,6 +148,11 @@ void AckermannPosControl::updateSubscriptions()
 		_start_ned = _start_ned.isAllFinite() ? _start_ned : _curr_pos_ned;
 		_arrival_speed = PX4_ISFINITE(_rover_position_setpoint.arrival_speed) ? _rover_position_setpoint.arrival_speed : 0.f;
 	}
+
+	// Always update target velocity from current setpoint (so it reflects the current mode)
+	_target_velocity_ned = Vector2f(
+		PX4_ISFINITE(_rover_position_setpoint.velocity_ned[0]) ? _rover_position_setpoint.velocity_ned[0] : NAN,
+		PX4_ISFINITE(_rover_position_setpoint.velocity_ned[1]) ? _rover_position_setpoint.velocity_ned[1] : NAN);
 
 }
 
